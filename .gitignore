@@ -1,0 +1,40 @@
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# React
+frontend/build/
+frontend/node_modules/
+frontend/.env*
+
+# Backend
+backend/node_modules/
+backend/.env*
+
+# Logs
+logs/
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docker
+*.pid
+docker-compose.override.yml
+
+# JMeter
+jmeter/results/
+
+# Taurus
+*.pyc
+__pycache__/
+
+# Misc
+.env
+.env.*
+.idea/
+.vscode/
+*.swp 

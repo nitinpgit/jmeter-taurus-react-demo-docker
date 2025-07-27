@@ -1,0 +1,30 @@
+
+execution:
+  - concurrency: 5
+    hold-for: 30s
+    ramp-up: 5s
+    scenario: get-delayed-quick-post-data
+
+scenarios:
+  get-delayed-quick-post-data:
+    requests:
+      - url: http://localhost:3000/api/delayed?delay=2000
+        method: GET
+        headers:
+          Accept: application/json
+      - url: http://localhost:3000/api/message
+        method: GET
+        headers:
+          Accept: application/json
+      - url: http://localhost:3000/api/data
+        method: POST
+        headers:
+          Content-Type: application/json
+        body:
+          name: "Taurus User"
+          email: "taurus@example.com"
+          message: "Hello from Taurus!"
+
+reporting:
+  - module: console
+  - module: final-stats

@@ -1,0 +1,21 @@
+execution:
+  - concurrency: 5
+    hold-for: 30s
+    ramp-up: 5s
+    scenario: post-create-data
+
+scenarios:
+  post-create-data:
+    requests:
+      - url: http://localhost:3000/api/data
+        method: POST
+        headers:
+          Content-Type: application/json
+        body:
+          name: "Taurus User"
+          email: "taurus@example.com"
+          message: "Hello from Taurus!"
+
+reporting:
+  - module: console
+  - module: final-stats 

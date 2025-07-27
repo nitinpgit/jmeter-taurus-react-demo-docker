@@ -1,0 +1,17 @@
+execution:
+  - concurrency: 5
+    hold-for: 30s
+    ramp-up: 5s
+    scenario: get-delayed-response
+
+scenarios:
+  get-delayed-response:
+    requests:
+      - url: http://localhost:3000/api/delayed?delay=2000
+        method: GET
+        headers:
+          Accept: application/json
+
+reporting:
+  - module: console
+  - module: final-stats 
