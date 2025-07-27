@@ -1,3 +1,5 @@
+artifacts-dir: ./taurus-result
+
 execution:
   - concurrency: 5
     hold-for: 30s

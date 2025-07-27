@@ -1,3 +1,4 @@
+artifacts-dir: ./taurus-result
 
 execution:
   - concurrency: 5

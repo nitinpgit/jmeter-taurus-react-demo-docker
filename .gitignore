@@ -32,6 +32,9 @@ jmeter/results/
 *.pyc
 __pycache__/
 
+# Taurus results
+/taurus-result/
+
 # Misc
 .env
 .env.*
