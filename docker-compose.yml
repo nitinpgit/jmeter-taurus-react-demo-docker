@@ -21,7 +21,7 @@ services:
     command: ["taurus/get-quick-message.yml"]  # ✅ no extra `bzt` here
 
   jenkins:
-    image: jenkins/jenkins:lts
+    build: ./jenkins-docker
     container_name: jenkins
     ports:
       - "8080:8080"
@@ -29,7 +29,7 @@ services:
     volumes:
       - jenkins_home:/var/jenkins_home
       - /var/run/docker.sock:/var/run/docker.sock  # Enables Jenkins to run Docker
-      - ./taurus-tests:/var/jenkins_home/workspace/taurus-tests  # Place Taurus YAMLs here
+      - ./taurus:/var/jenkins_home/workspace/taurus-tests-freestyle/taurus
     user: root  # Required to use docker inside container
 
 volumes:
