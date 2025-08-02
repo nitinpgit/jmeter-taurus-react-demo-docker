@@ -1,5 +1,5 @@
+version: '3.8'  # You can remove `version` entirely, or use 3.8+ if you want clarity
 
-version: '3'
 services:
   frontend:
     build: ./frontend
@@ -12,3 +12,25 @@ services:
     build: ./backend
     ports:
       - '5000:5000'
+
+  taurus:
+    image: blazemeter/taurus
+    volumes:
+      - ./:/bzt
+    working_dir: /bzt
+    command: ["taurus/get-quick-message.yml"]  # ✅ no extra `bzt` here
+
+  jenkins:
+    image: jenkins/jenkins:lts
+    container_name: jenkins
+    ports:
+      - "8080:8080"
+      - "50000:50000"
+    volumes:
+      - jenkins_home:/var/jenkins_home
+      - /var/run/docker.sock:/var/run/docker.sock  # Enables Jenkins to run Docker
+      - ./taurus-tests:/var/jenkins_home/workspace/taurus-tests  # Place Taurus YAMLs here
+    user: root  # Required to use docker inside container
+
+volumes:
+  jenkins_home:
