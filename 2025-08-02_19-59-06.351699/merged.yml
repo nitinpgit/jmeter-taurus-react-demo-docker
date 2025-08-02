@@ -1,0 +1,18 @@
+---
+artifacts-dir: ./taurus-result
+execution:
+- concurrency: 5
+  hold-for: 30s
+  ramp-up: 5s
+  scenario: get-quick-message
+reporting:
+- module: console
+- module: final-stats
+scenarios:
+  get-quick-message:
+    requests:
+    - headers:
+        Accept: application/json
+      method: GET
+      url: http://localhost:3000/api/message
+
