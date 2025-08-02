@@ -1,0 +1,269 @@
+<?xml version='1.1' encoding='UTF-8'?>
+<project>
+  <actions/>
+  <description>Jenkins Freestyle Job for Taurus Performance Testing with Docker Applications</description>
+  <keepDependencies>false</keepDependencies>
+  <properties>
+    <jenkins.model.BuildDiscarderProperty>
+      <strategy class="hudson.tasks.LogRotator">
+        <daysToKeep>30</daysToKeep>
+        <numToKeep>50</numToKeep>
+        <artifactDaysToKeep>-1</artifactDaysToKeep>
+        <artifactNumToKeep>-1</artifactNumToKeep>
+      </strategy>
+    </jenkins.model.BuildDiscarderProperty>
+    <hudson.model.ParametersDefinitionProperty>
+      <parameterDefinitions>
+        <hudson.model.StringParameterDefinition>
+          <name>TAURUS_TEST_FILE</name>
+          <description>Name of the Taurus test file to run (e.g., test.yml, get-quick-message.yml)</description>
+          <defaultValue>test.yml</defaultValue>
+        </hudson.model.StringParameterDefinition>
+        <hudson.model.StringParameterDefinition>
+          <name>TEST_DURATION</name>
+          <description>Duration of the test in seconds</description>
+          <defaultValue>60</defaultValue>
+        </hudson.model.StringParameterDefinition>
+        <hudson.model.StringParameterDefinition>
+          <name>CONCURRENT_USERS</name>
+          <description>Number of concurrent users</description>
+          <defaultValue>5</defaultValue>
+        </hudson.model.StringParameterDefinition>
+        <hudson.model.BooleanParameterDefinition>
+          <name>CLEANUP_CONTAINERS</name>
+          <description>Clean up containers after test completion</description>
+          <defaultValue>false</defaultValue>
+        </hudson.model.BooleanParameterDefinition>
+      </parameterDefinitions>
+    </hudson.model.ParametersDefinitionProperty>
+  </properties>
+  <scm class="hudson.plugins.git.GitSCM" plugin="git@4.11.0">
+    <configVersion>2</configVersion>
+    <userRemoteConfigs>
+      <hudson.plugins.git.UserRemoteConfig>
+        <url>YOUR_GIT_REPOSITORY_URL</url>
+        <credentialsId>YOUR_GIT_CREDENTIALS_ID</credentialsId>
+      </hudson.plugins.git.UserRemoteConfig>
+    </userRemoteConfigs>
+    <branches>
+      <hudson.plugins.git.BranchSpec>
+        <name>*/main</name>
+      </hudson.plugins.git.BranchSpec>
+    </branches>
+    <doGenerateSubmoduleConfigurations>false</doGenerateSubmoduleConfigurations>
+    <submoduleCfg class="list"/>
+    <extensions/>
+  </scm>
+  <canRoam>true</canRoam>
+  <disabled>false</disabled>
+  <blockBuildWhenDownstreamBuilding>false</blockBuildWhenDownstreamBuilding>
+  <blockBuildWhenUpstreamBuilding>false</blockBuildWhenUpstreamBuilding>
+  <triggers>
+    <hudson.triggers.SCMTrigger>
+      <spec>H/15 * * * *</spec>
+    </hudson.triggers.SCMTrigger>
+  </triggers>
+  <concurrentBuild>false</concurrentBuild>
+  <builders>
+    <hudson.tasks.Shell>
+      <command>#!/bin/bash
+set -e
+
+echo "=== Starting Taurus Performance Test Pipeline ==="
+echo "Test File: $TAURUS_TEST_FILE"
+echo "Duration: $TEST_DURATION seconds"
+echo "Concurrent Users: $CONCURRENT_USERS"
+
+# Step 1: Stop any existing containers
+echo "=== Step 1: Stopping existing containers ==="
+docker-compose down --remove-orphans || true
+
+# Step 2: Build and start the application containers
+echo "=== Step 2: Building and starting application containers ==="
+docker-compose up -d --build frontend backend
+
+# Step 3: Wait for applications to be ready
+echo "=== Step 3: Waiting for applications to be ready ==="
+echo "Waiting for backend to be ready..."
+timeout 60 bash -c 'until curl -f http://localhost:5000/api/health; do sleep 2; done' || {
+    echo "Backend health check failed"
+    docker-compose logs backend
+    exit 1
+}
+
+echo "Waiting for frontend to be ready..."
+timeout 60 bash -c 'until curl -f http://localhost:3000; do sleep 2; done' || {
+    echo "Frontend health check failed"
+    docker-compose logs frontend
+    exit 1
+}
+
+echo "Applications are ready!"
+
+# Step 4: Update Taurus test configuration with parameters
+echo "=== Step 4: Updating Taurus test configuration ==="
+cp taurus/$TAURUS_TEST_FILE taurus/modified_test.yml
+
+# Update the test file with build parameters
+sed -i "s/hold-for: [0-9]*s/hold-for: ${TEST_DURATION}s/g" taurus/modified_test.yml
+sed -i "s/concurrency: [0-9]*/concurrency: ${CONCURRENT_USERS}/g" taurus/modified_test.yml
+
+echo "Modified test configuration:"
+cat taurus/modified_test.yml
+
+# Step 5: Run Taurus tests
+echo "=== Step 5: Running Taurus tests ==="
+cd taurus
+bzt modified_test.yml
+
+# Step 6: Copy results to workspace
+echo "=== Step 6: Copying test results ==="
+cd ..
+mkdir -p test-results
+cp -r taurus/taurus-result/* test-results/ || true
+cp taurus/modified_test.yml test-results/ || true
+
+# Step 7: Generate test summary
+echo "=== Step 7: Generating test summary ==="
+if [ -f "test-results/kpi.jtl" ]; then
+    echo "Test Results Summary:" > test-results/summary.txt
+    echo "====================" >> test-results/summary.txt
+    echo "Test File: $TAURUS_TEST_FILE" >> test-results/summary.txt
+    echo "Duration: $TEST_DURATION seconds" >> test-results/summary.txt
+    echo "Concurrent Users: $CONCURRENT_USERS" >> test-results/summary.txt
+    echo "Timestamp: $(date)" >> test-results/summary.txt
+    echo "" >> test-results/summary.txt
+    
+    # Extract basic statistics from JMeter results
+    if command -v python3 &gt; /dev/null; then
+        python3 -c "
+import xml.etree.ElementTree as ET
+import sys
+
+try:
+    tree = ET.parse('test-results/kpi.jtl')
+    root = tree.getroot()
+    
+    total_requests = len(root.findall('.//httpSample'))
+    failed_requests = len(root.findall('.//httpSample[@s="false"]'))
+    success_rate = ((total_requests - failed_requests) / total_requests * 100) if total_requests &gt; 0 else 0
+    
+    print(f'Total Requests: {total_requests}')
+    print(f'Failed Requests: {failed_requests}')
+    print(f'Success Rate: {success_rate:.2f}%')
+    
+    with open('test-results/summary.txt', 'a') as f:
+        f.write(f'Total Requests: {total_requests}\\n')
+        f.write(f'Failed Requests: {failed_requests}\\n')
+        f.write(f'Success Rate: {success_rate:.2f}%\\n')
+        
+except Exception as e:
+    print(f'Error parsing results: {e}')
+    with open('test-results/summary.txt', 'a') as f:
+        f.write(f'Error parsing results: {e}\\n')
+"
+    fi
+fi
+
+# Step 8: Cleanup (optional)
+if [ "$CLEANUP_CONTAINERS" = "true" ]; then
+    echo "=== Step 8: Cleaning up containers ==="
+    docker-compose down
+else
+    echo "=== Step 8: Keeping containers running ==="
+    echo "Containers are still running. Use CLEANUP_CONTAINERS=true to stop them."
+fi
+
+echo "=== Taurus Performance Test Pipeline Completed ==="
+echo "Results available in: test-results/"
+      </command>
+    </hudson.tasks.Shell>
+  </builders>
+  <publishers>
+    <hudson.tasks.junit.JUnitResultArchiver plugin="junit@1.58">
+      <testResults>test-results/*.xml</testResults>
+      <testDataPublishers/>
+      <healthThresholds>
+        <unstableThreshold>0</unstableThreshold>
+        <failureThreshold>0</failureThreshold>
+      </healthThresholds>
+      <allowEmptyResults>true</allowEmptyResults>
+      <keepLongStdio>false</keepLongStdio>
+      <expandBuildLogInFailureMessages>false</expandBuildLogInFailureMessages>
+    </hudson.tasks.junit.JUnitResultArchiver>
+    <hudson.tasks.ArtifactArchiver plugin="artifact-archiver@1.0">
+      <artifacts>test-results/**</artifacts>
+      <allowEmptyArchive>true</allowEmptyArchive>
+      <onlyIfSuccessful>false</onlyIfSuccessful>
+      <fingerprint>false</fingerprint>
+      <defaultExcludes>true</defaultExcludes>
+      <caseSensitive>true</caseSensitive>
+    </hudson.tasks.ArtifactArchiver>
+    <hudson.plugins.htmlpublisher.HtmlPublisher plugin="htmlpublisher@1.30">
+      <reportTargets>
+        <hudson.plugins.htmlpublisher.HtmlPublisherTarget>
+          <reportName>Taurus Test Report</reportName>
+          <reportDir>test-results</reportDir>
+          <reportFiles>*.html</reportFiles>
+          <keepAll>true</keepAll>
+          <escapeUnderscores>false</escapeUnderscores>
+          <allowMissing>true</allowMissing>
+          <alwaysLinkToLastBuild>false</alwaysLinkToLastBuild>
+          <wrapperName>htmlpublisher-wrapper.html</wrapperName>
+        </hudson.plugins.htmlpublisher.HtmlPublisherTarget>
+      </reportTargets>
+    </hudson.plugins.htmlpublisher.HtmlPublisher>
+    <hudson.plugins.emailext.ExtendedEmailPublisher plugin="email-ext@2.91">
+      <recipientList>admin@example.com</recipientList>
+      <configuredTriggers>
+        <hudson.plugins.emailext.plugins.trigger.FailureTrigger>
+          <email>
+            <recipientList></recipientList>
+            <subject>$PROJECT_DEFAULT_SUBJECT</subject>
+            <body>$PROJECT_DEFAULT_CONTENT</body>
+            <recipientProviders>
+              <hudson.plugins.emailext.plugins.recipients.DevelopersRecipientProvider/>
+            </recipientProviders>
+            <attachmentsPattern></attachmentsPattern>
+            <attachBuildLog>false</attachBuildLog>
+            <compressAttachments>false</compressAttachments>
+            <replyTo>$PROJECT_DEFAULT_REPLYTO</replyTo>
+            <contentType>project</contentType>
+          </email>
+        </hudson.plugins.emailext.plugins.trigger.FailureTrigger>
+        <hudson.plugins.emailext.plugins.trigger.SuccessTrigger>
+          <email>
+            <recipientList></recipientList>
+            <subject>$PROJECT_DEFAULT_SUBJECT</subject>
+            <body>$PROJECT_DEFAULT_CONTENT</body>
+            <recipientProviders>
+              <hudson.plugins.emailext.plugins.recipients.DevelopersRecipientProvider/>
+            </recipientProviders>
+            <attachmentsPattern></attachmentsPattern>
+            <attachBuildLog>false</attachBuildLog>
+            <compressAttachments>false</compressAttachments>
+            <replyTo>$PROJECT_DEFAULT_REPLYTO</replyTo>
+            <contentType>project</contentType>
+          </email>
+        </hudson.plugins.emailext.plugins.trigger.SuccessTrigger>
+      </configuredTriggers>
+      <contentType>default</contentType>
+      <defaultSubject>$DEFAULT_SUBJECT</defaultSubject>
+      <defaultContent>$DEFAULT_CONTENT</defaultContent>
+      <attachmentsPattern></attachmentsPattern>
+      <presendScript></presendScript>
+      <postsendScript></postsendScript>
+      <attachBuildLog>false</attachBuildLog>
+      <compressAttachments>false</compressAttachments>
+      <replyTo>$DEFAULT_REPLYTO</replyTo>
+      <saveOutput>false</saveOutput>
+      <disabled>false</disabled>
+    </hudson.plugins.emailext.ExtendedEmailPublisher>
+  </publishers>
+  <buildWrappers>
+    <hudson.plugins.timestamper.TimestamperBuildWrapper plugin="timestamper@1.20"/>
+    <hudson.plugins.ansicolor.AnsiColorBuildWrapper plugin="ansicolor@1.0.1">
+      <colorMapName>xterm</colorMapName>
+    </hudson.plugins.ansicolor.AnsiColorBuildWrapper>
+  </buildWrappers>
+</project> 
