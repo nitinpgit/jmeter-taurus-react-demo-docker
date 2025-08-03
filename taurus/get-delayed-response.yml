@@ -9,11 +9,17 @@ execution:
 scenarios:
   get-delayed-response:
     requests:
-      - url: http://localhost:3000/api/delayed?delay=2000
+      - url: http://localhost:5000/api/delayed?delay=2000
         method: GET
         headers:
           Accept: application/json
 
 reporting:
   - module: console
-  - module: final-stats 
+  - module: final-stats
+  - module: junit-xml
+    filename: ./taurus-result/taurus-report.xml
+  - module: blazemeter
+    project: "jmeter-taurus-blazemeter-react-demo-project"
+    report-name: "Get Delayed Response API Test"
+    test: "get-delayed-response-test" 

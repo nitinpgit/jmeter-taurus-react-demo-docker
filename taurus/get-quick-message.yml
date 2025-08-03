@@ -9,7 +9,7 @@ execution:
 scenarios:
   get-quick-message:
     requests:
-      - url: http://frontend/api/message  # <== use service name, not localhost
+      - url: http://localhost:5000/api/message  # <== use service name, not localhost
         method: GET
         headers:
           Accept: application/json
@@ -20,5 +20,6 @@ reporting:
   - module: junit-xml
     filename: ./taurus-result/taurus-report.xml
   - module: blazemeter
-    report-name: "Taurus Get Message"
-    test: "get-message-test"
+    project: "jmeter-taurus-blazemeter-react-demo-project"
+    report-name: "Get Quick Message API Test"
+    test: "get-quick-message-test"
