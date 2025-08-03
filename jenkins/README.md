@@ -4,14 +4,19 @@ This guide provides step-by-step instructions to set up Jenkins with Docker and 
 
 ## 🚀 Quick Start
 
-### 1. Start Jenkins with Docker
+### 1. Build and Start Jenkins with Docker
 
 ```bash
-# Make scripts executable
+# Navigate to jenkins directory
+cd jenkins
+
+# Build custom Jenkins image and start container with name jenkins-taurus-demo
+docker-compose build
+docker-compose up -d
+
+# Or use the start script (includes build)
 chmod +x jenkins/start-jenkins.sh
 chmod +x jenkins/stop-jenkins.sh
-
-# Start Jenkins
 ./jenkins/start-jenkins.sh
 ```
 
@@ -67,7 +72,7 @@ After initial setup, install these plugins:
 cat > ~/.bzt-rc << EOF
 modules:
   blazemeter:
-    token: "1f57f44b33ab29df65126dc1:c0d07b2ae9f8d63d3806520dd79eeb69c26ea1376775ea743e81bcb091be3ddf5d03e559"
+    token: "BLAZEMETER_API_KEY:BLAZEMETER_SECRET_KEY"
 EOF
 echo "BlazeMeter configuration created"
 
@@ -186,14 +191,18 @@ Add these parameters to your freestyle project:
 ## 🔧 Prerequisites
 
 ### Jenkins Node Requirements
-- **Java 8+**
-- **Node.js 14+**
-- **Python 3.7+**
-- **Taurus**: `pip install bzt`
-- **Git**
-- **curl**
+- **Java 8+** (included in Jenkins LTS image)
+- **Node.js 14+** (pre-installed in custom image)
+- **Python 3.7+** (pre-installed in custom image)
+- **Taurus**: `pip install bzt` (pre-installed in custom image)
+- **Git** (pre-installed in custom image)
+- **curl** (pre-installed in custom image)
+- **Docker** (pre-installed in custom image)
 
-### Install Dependencies on Jenkins Node
+### Install Dependencies on Jenkins Node (If Using Standard Image)
+
+**Note**: The custom Docker image includes all dependencies pre-installed. Only follow these steps if using the standard Jenkins image.
+
 ```bash
 # Install Node.js
 curl -fsSL https://deb.nodesource.com/setup_16.x | sudo -E bash -
@@ -262,9 +271,10 @@ docker exec -it jenkins-taurus-demo bash
 
 ```
 jenkins/
-├── docker-compose.yml          # Jenkins Docker setup
+├── docker-compose.yml          # Jenkins Docker setup with custom image
+├── Dockerfile                  # Custom Jenkins image with dependencies
 ├── Jenkinsfile                 # Pipeline definition
-├── start-jenkins.sh           # Start Jenkins script
+├── start-jenkins.sh           # Start Jenkins script (with build)
 ├── stop-jenkins.sh            # Stop Jenkins script
 └── README.md                  # This file
 ```

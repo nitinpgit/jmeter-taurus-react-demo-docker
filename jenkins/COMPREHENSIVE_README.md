@@ -42,13 +42,26 @@ This comprehensive guide provides everything you need to set up Jenkins with Doc
 
 ## 🚀 Quick Start
 
-### Step 1: Start Jenkins
+### Step 1: Build and Start Jenkins
+```bash
+# Navigate to jenkins directory
+cd jenkins
+
+# Build custom Jenkins image and start container with name jenkins-taurus-demo
+docker-compose build
+docker-compose up -d
+
+# Or build and start in one command
+docker-compose up -d --build
+```
+
+### Alternative: Using Start Script
 ```bash
 # Make scripts executable
 chmod +x jenkins/start-jenkins.sh
 chmod +x jenkins/stop-jenkins.sh
 
-# Start Jenkins
+# Start Jenkins (uses docker-compose under the hood)
 ./jenkins/start-jenkins.sh
 ```
 
@@ -72,11 +85,12 @@ Follow the detailed setup in [Project Configuration](#-project-configuration)
 - **Internet connection** for downloading dependencies
 
 ### Jenkins Node Requirements
-- **Java 8+**
-- **Node.js 14+**
-- **Python 3.7+**
-- **Taurus**: `pip install bzt`
-- **curl** for health checks
+- **Java 8+** (included in Jenkins LTS image)
+- **Node.js 14+** (pre-installed in custom image)
+- **Python 3.7+** (pre-installed in custom image)
+- **Taurus**: `pip install bzt` (pre-installed in custom image)
+- **curl** for health checks (pre-installed in custom image)
+- **Docker** (pre-installed in custom image)
 
 ### Port Requirements
 - **Jenkins**: 8080
@@ -87,9 +101,19 @@ Follow the detailed setup in [Project Configuration](#-project-configuration)
 
 ## 🛠️ Environment Setup
 
+### Pre-Installed Dependencies
+
+The custom Jenkins Docker image includes all required dependencies pre-installed:
+
+✅ **Node.js and npm** - Ready to use  
+✅ **Python 3 and pip** - Ready to use  
+✅ **Taurus (bzt)** - Installed in virtual environment  
+✅ **curl and build tools** - Ready to use  
+✅ **Docker** - Available for container operations  
+
 ### Manual Environment Setup (If Needed)
 
-If your Jenkins container doesn't have the required dependencies, follow these steps:
+If you're using the standard Jenkins image or need to install additional dependencies, follow these steps:
 
 #### 1. Enter Jenkins Container
 ```bash
@@ -174,14 +198,14 @@ echo "Environment setup completed!"
 
 ### Docker Compose Setup
 
-The `docker-compose.yml` file provides a complete Jenkins setup:
+The `docker-compose.yml` file provides a complete Jenkins setup with a custom Docker image that includes all required dependencies:
 
 ```yaml
 version: '3.8'
 
 services:
   jenkins:
-    image: jenkins/jenkins:lts-jdk17
+    build: .
     container_name: jenkins-taurus-demo
     restart: unless-stopped
     ports:
@@ -202,6 +226,61 @@ volumes:
 networks:
   jenkins-network:
     driver: bridge
+```
+
+### Custom Dockerfile
+
+The `Dockerfile` creates a custom Jenkins image with all required dependencies pre-installed:
+
+```dockerfile
+FROM jenkins/jenkins:lts-jdk17
+
+USER root
+
+RUN apt-get update && \
+    apt-get install -y docker.io curl gnupg build-essential \
+    python3 python3-pip python3-venv nodejs npm && \
+    python3 -m venv /var/jenkins_home/taurus-venv && \
+    /bin/bash -c "source /var/jenkins_home/taurus-venv/bin/activate && pip install bzt"
+
+USER jenkins
+```
+
+### Docker Build and Setup Commands
+
+#### Option 1: Build and Start (Recommended)
+```bash
+# Build the custom Jenkins image and start the container
+docker-compose build
+docker-compose up -d
+
+# Check container status
+docker-compose ps
+
+# View logs
+docker-compose logs -f jenkins
+```
+
+#### Option 2: Build and Start in One Command
+```bash
+# Build and start in one command
+docker-compose up -d --build
+```
+
+#### Option 3: Force Rebuild
+```bash
+# Force rebuild the image (useful after Dockerfile changes)
+docker-compose build --no-cache
+docker-compose up -d
+```
+
+#### Option 4: Stop and Remove
+```bash
+# Stop and remove containers
+docker-compose down
+
+# Stop and remove containers with volumes
+docker-compose down -v
 ```
 
 ### Start/Stop Scripts
@@ -311,7 +390,7 @@ chmod +x comprehensive-build-script.sh
 cat > ~/.bzt-rc << EOF
 modules:
   blazemeter:
-    token: "1f57f44b33ab29df65126dc1:c0d07b2ae9f8d63d3806520dd79eeb69c26ea1376775ea743e81bcb091be3ddf5d03e559"
+    token: "BLAZEMETER_API_KEY:BLAZEMETER_SECRET_KEY"
 EOF
 
 # Step 2: Install Dependencies
@@ -406,7 +485,7 @@ pipeline {
                     writeFile file: '.bzt-rc', text: '''
 modules:
   blazemeter:
-    token: "1f57f44b33ab29df65126dc1:c0d07b2ae9f8d63d3806520dd79eeb69c26ea1376775ea743e81bcb091be3ddf5d03e559"
+    token: "BLAZEMETER_API_KEY:BLAZEMETER_SECRET_KEY"
 '''
                 }
             }
@@ -755,15 +834,16 @@ Configure email notifications in Jenkins:
 
 ```
 jenkins/
-├── docker-compose.yml                    # Jenkins Docker setup
+├── docker-compose.yml                    # Jenkins Docker setup with custom image
+├── Dockerfile                            # Custom Jenkins image with dependencies
 ├── Jenkinsfile                           # Pipeline definition
 ├── comprehensive-build-script.sh         # Complete build automation
 ├── enhanced-taurus-build-step.sh         # Enhanced Taurus execution
 ├── freestyle-build-script.sh             # Freestyle project script
-├── start-jenkins.sh                      # Start Jenkins container
+├── start-jenkins.sh                      # Start Jenkins container (with build)
 ├── stop-jenkins.sh                       # Stop Jenkins container
 ├── README.md                             # Basic setup guide
-├── README-1.md                           # Environment setup guide
+├── Jenkins_Taurus_Node_Env_Setup_Readme.md # Environment setup guide
 ├── JENKINS_SETUP_SUMMARY.md              # Quick reference
 └── COMPREHENSIVE_README.md               # This complete guide
 ```
@@ -772,15 +852,16 @@ jenkins/
 
 | File | Purpose | Usage |
 |------|---------|-------|
-| `docker-compose.yml` | Jenkins container configuration | Start Jenkins with Docker |
+| `docker-compose.yml` | Jenkins container configuration | Start Jenkins with custom image |
+| `Dockerfile` | Custom Jenkins image with dependencies | Build Jenkins image with pre-installed tools |
 | `Jenkinsfile` | Declarative pipeline definition | Alternative to freestyle project |
 | `comprehensive-build-script.sh` | Complete build automation | Single script for all operations |
 | `enhanced-taurus-build-step.sh` | Enhanced Taurus execution | Focused Taurus testing |
 | `freestyle-build-script.sh` | Freestyle project script | Jenkins freestyle build step |
-| `start-jenkins.sh` | Start Jenkins container | Quick Jenkins startup |
+| `start-jenkins.sh` | Start Jenkins container (with build) | Quick Jenkins startup with image build |
 | `stop-jenkins.sh` | Stop Jenkins container | Clean Jenkins shutdown |
 | `README.md` | Basic setup guide | Quick start instructions |
-| `README-1.md` | Environment setup guide | Manual environment configuration |
+| `Jenkins_Taurus_Node_Env_Setup_Readme.md` | Environment setup guide | Manual environment configuration |
 | `JENKINS_SETUP_SUMMARY.md` | Quick reference | Overview and summary |
 | `COMPREHENSIVE_README.md` | Complete guide | This comprehensive documentation |
 
@@ -791,8 +872,10 @@ jenkins/
 ### Example 1: Quick Start with Freestyle Project
 
 ```bash
-# 1. Start Jenkins
-./jenkins/start-jenkins.sh
+# 1. Build and start Jenkins
+cd jenkins
+docker-compose build
+docker-compose up -d
 
 # 2. Get initial password
 docker exec jenkins-taurus-demo cat /var/jenkins_home/secrets/initialAdminPassword
@@ -807,8 +890,10 @@ docker exec jenkins-taurus-demo cat /var/jenkins_home/secrets/initialAdminPasswo
 ### Example 2: Pipeline Approach
 
 ```bash
-# 1. Start Jenkins
-./jenkins/start-jenkins.sh
+# 1. Build and start Jenkins
+cd jenkins
+docker-compose build
+docker-compose up -d
 
 # 2. Create pipeline project
 # 3. Point to Jenkinsfile in repository

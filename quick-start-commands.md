@@ -114,8 +114,8 @@ java -version
 export JMETER_HOME=/path/to/jmeter
 
 # Set BlazeMeter credentials
-export BLAZEMETER_TOKEN="1f57f44b33ab29df65126dc1"
-export BLAZEMETER_SECRET="c0d07b2ae9f8d63d3806520dd79eeb69c26ea1376775ea743e81bcb091be3ddf5d03e559"
+export BLAZEMETER_TOKEN="BLAZEMETER_API_KEY"
+export BLAZEMETER_SECRET="BLAZEMETER_SECRET_KEY"
 ```
 
 ## 📁 Project Structure

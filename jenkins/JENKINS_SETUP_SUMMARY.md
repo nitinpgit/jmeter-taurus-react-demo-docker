@@ -19,13 +19,17 @@ jenkins/
 
 ## 🚀 Quick Start (3 Steps)
 
-### 1. Start Jenkins
+### 1. Build and Start Jenkins
 ```bash
-# Linux/Mac
-chmod +x jenkins/start-jenkins.sh
-./jenkins/start-jenkins.sh
+# Navigate to jenkins directory
+cd jenkins
 
-# Windows (using Git Bash or WSL)
+# Build custom Jenkins image and start container with name jenkins-taurus-demo
+docker-compose build
+docker-compose up -d
+
+# Or use the start script (includes build)
+chmod +x jenkins/start-jenkins.sh
 ./jenkins/start-jenkins.sh
 ```
 
@@ -39,7 +43,8 @@ Follow the detailed guide in `jenkins/README.md`
 ## 🔧 Key Features
 
 ### ✅ What's Included
-- **Docker-based Jenkins** with persistent volume storage
+- **Custom Docker-based Jenkins** with pre-installed dependencies
+- **Persistent volume storage** for Jenkins data
 - **Freestyle project** configuration with build parameters
 - **Automated application startup** (backend + frontend)
 - **Taurus test execution** with configurable YAML files
@@ -92,12 +97,13 @@ export TAURUS_CONFIG=taurus/get-quick-message.yml
 ## 🛠️ Prerequisites
 
 ### Jenkins Node Requirements
-- **Java 8+**
-- **Node.js 14+**
-- **Python 3.7+**
-- **Taurus**: `pip install bzt`
-- **Git**
-- **curl**
+- **Java 8+** (included in Jenkins LTS image)
+- **Node.js 14+** (pre-installed in custom image)
+- **Python 3.7+** (pre-installed in custom image)
+- **Taurus**: `pip install bzt` (pre-installed in custom image)
+- **Git** (pre-installed in custom image)
+- **curl** (pre-installed in custom image)
+- **Docker** (pre-installed in custom image)
 
 ### Docker Requirements
 - **Docker**
@@ -110,7 +116,7 @@ The BlazeMeter token is automatically configured in the build script:
 ```yaml
 modules:
   blazemeter:
-    token: "1f57f44b33ab29df65126dc1:c0d07b2ae9f8d63d3806520dd79eeb69c26ea1376775ea743e81bcb091be3ddf5d03e559"
+    token: "BLAZEMETER_API_KEY:BLAZEMETER_SECRET_KEY"
 ```
 
 ### Ports

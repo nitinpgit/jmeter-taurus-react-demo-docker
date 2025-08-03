@@ -54,7 +54,7 @@ echo "Step 1: Setting up environment..."
 cat > ~/.bzt-rc << EOF
 modules:
   blazemeter:
-    token: "1f57f44b33ab29df65126dc1:c0d07b2ae9f8d63d3806520dd79eeb69c26ea1376775ea743e81bcb091be3ddf5d03e559"
+    token: "BLAZEMETER_API_KEY:BLAZEMETER_SECRET_KEY"
 EOF
 echo "✓ BlazeMeter configuration created"
 

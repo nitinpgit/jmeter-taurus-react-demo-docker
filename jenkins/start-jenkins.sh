@@ -31,7 +31,11 @@ fi
 # Navigate to jenkins directory
 cd jenkins
 
+echo "Building Jenkins image..."
+docker-compose build
+
 echo "Starting Jenkins container..."
+echo "container name: jenkins-taurus-demo"
 docker-compose up -d
 
 if [ $? -eq 0 ]; then
