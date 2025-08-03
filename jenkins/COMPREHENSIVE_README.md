@@ -540,7 +540,7 @@ chmod +x freestyle-build-script.sh
 **Solution**:
 ```bash
 # Enter Jenkins container
-docker exec -it jenkins-taurus-demo /bin/bash
+docker exec -u 0 -it jenkins-taurus-demo bash
 
 # Create virtual environment
 python3 -m venv /var/jenkins_home/taurus-venv
