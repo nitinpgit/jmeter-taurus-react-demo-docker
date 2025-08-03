@@ -1,19 +1,17 @@
 
-# JMeter Taurus React Demo with Docker & Jenkins
+# JMeter Taurus React Demo - Local Testing
 
-A comprehensive load testing demo project that combines React frontend, Node.js backend, JMeter test plans, Taurus configurations, and Jenkins CI/CD pipeline for automated performance testing.
+A comprehensive load testing demo project that combines React frontend, Node.js backend, JMeter test plans, and Taurus configurations for performance testing on your local machine.
 
 ## 🏗️ Project Architecture
 
 ```
-jmeter-taurus-react-demo-docker/
+jmeter-taurus-react-demo/
 ├── frontend/                 # React application
-│   ├── Dockerfile
 │   ├── package.json
 │   ├── public/
 │   └── src/
 ├── backend/                  # Node.js API server
-│   ├── Dockerfile
 │   ├── package.json
 │   └── server.js
 ├── jmeter/                   # JMeter test plans
@@ -24,9 +22,10 @@ jmeter-taurus-react-demo-docker/
 │   ├── get-delayed-response.yml
 │   ├── post-create-data.yml
 │   └── test.yml
-├── jenkins-docker/           # Custom Jenkins with Docker
-│   └── Dockerfile
-├── docker-compose.yml        # Complete stack orchestration
+├── run-jmeter-tests.bat/.sh  # JMeter test runners
+├── run-taurus-tests.bat/.sh  # Taurus test runners
+├── setup-local-environment.md # Setup guide
+├── quick-start-commands.md   # Quick reference
 └── README.md
 ```
 
@@ -34,32 +33,33 @@ jmeter-taurus-react-demo-docker/
 
 ### Prerequisites
 
-- **Docker & Docker Compose** (v20.10+)
-- **Java 8+** (for JMeter GUI)
-- **Node.js 14+** (for local development)
+- **Java 8+** (for JMeter)
+- **Node.js 14+** (for application)
+- **Python 3.7+** (for Taurus)
+- **JMeter 5.4+** installed
+- **Taurus** installed: `pip install bzt`
 
 ### 1. Clone the Repository
 
 ```bash
 git clone <repository-url>
-cd jmeter-taurus-react-demo-docker
+cd jmeter-taurus-react-demo
 ```
 
-### 2. Start the Complete Stack
+### 2. Start the Application
 
 ```bash
-# Build and start all services
-docker-compose up -d --build
+# Start backend
+cd backend && npm install && npm start
 
-# Check services status
-docker-compose ps
+# Start frontend (in new terminal)
+cd frontend && npm install && npm start
 ```
 
 ### 3. Access Applications
 
 - **Frontend**: http://localhost:3000
 - **Backend API**: http://localhost:5000
-- **Jenkins**: http://localhost:8080
 
 ## 📋 API Endpoints
 
@@ -117,30 +117,26 @@ curl "http://localhost:5000/api/search?query=test&limit=10&page=1"
 
 #### Running JMeter Tests
 
-1. **Open JMeter GUI**:
+**Option 1: Using the provided script**
 ```bash
-# Download JMeter if not installed
-# https://jmeter.apache.org/download_jmeter.cgi
+# Windows
+run-jmeter-tests.bat
 
-# Start JMeter GUI
-jmeter
+# Linux/Mac
+chmod +x run-jmeter-tests.sh
+./run-jmeter-tests.sh
 ```
 
-2. **Load Test Plan**:
-   - Open `jmeter/test-plan.jmx` in JMeter
-   - Update server/port if needed (default: `localhost:3000` for frontend, `localhost:5000` for backend)
-
-3. **Run Tests**:
-   - Click the green "Start" button
-   - View results in JMeter's "View Results Tree" and "Summary Report"
-
-4. **Command Line Execution**:
+**Option 2: Manual execution**
 ```bash
 # Run JMeter test from command line
 jmeter -n -t jmeter/test-plan.jmx -l results.jtl -e -o report/
 
 # Run specific test plan
 jmeter -n -t jmeter/localhost3000/get-quick-message.jmx -l quick-message-results.jtl
+
+# Run with GUI (for development)
+jmeter -t jmeter/localhost3000/get-quick-message.jmx
 ```
 
 ### C. Taurus Testing
@@ -149,12 +145,20 @@ jmeter -n -t jmeter/localhost3000/get-quick-message.jmx -l quick-message-results
 - **Python 3.7+** installed
 - **Taurus** installed: `pip install bzt`
 
-#### Running Taurus Tests Locally
+#### Running Taurus Tests
 
+**Option 1: Using the provided script**
 ```bash
-# Install Taurus
-pip install bzt
+# Windows
+run-taurus-tests.bat
 
+# Linux/Mac
+chmod +x run-taurus-tests.sh
+./run-taurus-tests.sh
+```
+
+**Option 2: Manual execution**
+```bash
 # Run basic test
 bzt taurus/test.yml
 
@@ -166,81 +170,6 @@ bzt taurus/post-create-data.yml
 # Run with custom parameters
 bzt -o execution.0.concurrency=10 -o execution.0.hold-for=60s taurus/get-quick-message.yml
 ```
-
-#### Running Taurus with Docker
-
-```bash
-# One-off test (PowerShell syntax)
-docker run --rm -v "${PWD}:/bzt" -w /bzt blazemeter/taurus bzt taurus/get-quick-message.yml
-
-# Linux/Mac syntax
-docker run --rm -v "$(pwd):/bzt" -w /bzt blazemeter/taurus bzt taurus/get-quick-message.yml
-
-# Run with network access to the application
-docker run --rm \
-  --network jmeter-taurus-react-demo-docker_default \
-  -v "$(pwd):/bzt" \
-  -w /bzt \
-  blazemeter/taurus bzt taurus/get-quick-message.yml
-```
-
-### D. Jenkins Pipeline Testing
-
-#### Initial Setup
-
-1. **Access Jenkins**:
-   - Open http://localhost:8080
-   - Get initial admin password: `docker-compose exec jenkins cat /var/jenkins_home/secrets/initialAdminPassword`
-
-2. **Install Required Plugins**:
-   - Docker Pipeline
-   - JUnit
-   - Parameterized Trigger
-
-3. **Configure Jenkins**:
-   - Go to "Manage Jenkins" > "Configure System"
-   - Ensure Docker is accessible from Jenkins
-
-#### Creating Parameterized Build
-
-1. **Create New Job**:
-   - Click "New Item"
-   - Select "Freestyle project"
-   - Name: `taurus-tests-freestyle-parameterized`
-
-2. **Configure Parameters**:
-   - Check "This project is parameterized"
-   - Add parameters:
-     - **Choice Parameter**: `TAURUS_YAML_FILE`
-       - Choices: `get-quick-message.yml`, `get-delayed-response.yml`, `post-create-data.yml`, `test.yml`
-     - **Number Parameter**: `CONCURRENT_USERS` (Default: 5)
-     - **Number Parameter**: `RAMP_UP_TIME` (Default: 5)
-     - **Number Parameter**: `HOLD_FOR_TIME` (Default: 30)
-     - **String Parameter**: `TARGET_URL` (Default: http://frontend/api/message)
-
-3. **Add Build Step**:
-   - Click "Add build step" > "Execute shell"
-   - Copy the script from `jenkins-parameterized-script-short.sh`
-
-4. **Add Post-Build Actions**:
-   - "Archive the artifacts": `taurus-result/**/*`
-   - "Publish JUnit test result report": `taurus-result/*.xml`
-
-#### Running Jenkins Tests
-
-1. **Manual Execution**:
-   - Go to the job page
-   - Click "Build with Parameters"
-   - Select desired parameters
-   - Click "Build"
-
-2. **Scheduled Execution**:
-   - Configure "Build Triggers" > "Build periodically"
-   - Example: `H/15 * * * *` (every 15 minutes)
-
-3. **Pipeline Integration**:
-   - Use "Parameterized Trigger" to call from other jobs
-   - Integrate with Git webhooks for automatic testing
 
 ## 🔧 Local Development Setup
 
@@ -277,86 +206,17 @@ npm install -g nodemon
 nodemon server.js
 ```
 
-### Database Setup (if needed)
-
-```bash
-# The current setup uses in-memory storage
-# For persistent storage, add MongoDB or PostgreSQL to docker-compose.yml
-```
-
-## 🐳 Docker Commands
-
-### Individual Services
-
-```bash
-# Start only frontend
-docker-compose up frontend
-
-# Start only backend
-docker-compose up backend
-
-# Start only Jenkins
-docker-compose up jenkins
-
-# Start only Taurus
-docker-compose up taurus
-```
-
-### Development Commands
-
-```bash
-# View logs
-docker-compose logs -f [service-name]
-
-# Rebuild specific service
-docker-compose build [service-name]
-
-# Stop all services
-docker-compose down
-
-# Stop and remove volumes
-docker-compose down -v
-
-# Clean up everything
-docker-compose down -v --rmi all
-```
-
-### Custom Taurus Testing
-
-```bash
-# Run Taurus with custom configuration
-docker run --rm \
-  --network jmeter-taurus-react-demo-docker_default \
-  -v "$(pwd)/taurus:/bzt/taurus" \
-  -w /bzt \
-  blazemeter/taurus bzt taurus/get-quick-message.yml
-
-# Run with environment variables
-docker run --rm \
-  --network jmeter-taurus-react-demo-docker_default \
-  -e CONCURRENT_USERS=10 \
-  -e HOLD_FOR_TIME=60 \
-  -v "$(pwd):/bzt" \
-  -w /bzt \
-  blazemeter/taurus bzt taurus/test.yml
-```
-
 ## 📊 Test Results & Reports
 
 ### JMeter Results
-- **Location**: Generated in JMeter GUI or specified output directory
+- **Location**: `jmeter-results/` directory
 - **Format**: `.jtl` files, HTML reports
-- **View**: JMeter's "View Results Tree" and "Summary Report"
+- **Files**: `results_YYYYMMDD_HHMMSS.jtl`, `html-report_YYYYMMDD_HHMMSS/`
 
 ### Taurus Results
-- **Location**: `taurus-result/` directory
+- **Location**: `taurus-results/` directory
 - **Format**: JUnit XML, console output, BlazeMeter reports
 - **Files**: `taurus-report.xml`, console logs, performance metrics
-
-### Jenkins Results
-- **Location**: Jenkins job workspace
-- **Format**: Archived artifacts, JUnit reports
-- **Access**: Jenkins job page > "Build History" > "Console Output"
 
 ## 🔍 Troubleshooting
 
@@ -367,48 +227,48 @@ docker run --rm \
 # Check if ports are in use
 netstat -tulpn | grep :3000
 netstat -tulpn | grep :5000
-netstat -tulpn | grep :8080
 
-# Change ports in docker-compose.yml if needed
+# Change ports in package.json if needed
 ```
 
-2. **Docker Permission Issues**:
+2. **JMeter not found**:
 ```bash
-# Add user to docker group
-sudo usermod -aG docker $USER
-# Logout and login again
+# Ensure JMeter is installed and in PATH
+jmeter -v
+
+# Set JMETER_HOME environment variable
+export JMETER_HOME=/path/to/jmeter
 ```
 
-3. **Jenkins Docker Access**:
+3. **Taurus not found**:
 ```bash
-# Ensure Jenkins can access Docker
-docker-compose exec jenkins docker ps
+# Install Taurus
+pip install bzt
 
-# If not working, check Docker socket permissions
-ls -la /var/run/docker.sock
+# Verify installation
+bzt --version
 ```
 
-4. **Taurus Network Issues**:
+4. **Java not found**:
 ```bash
-# Check if Taurus can reach the application
-docker-compose exec taurus ping frontend
-docker-compose exec taurus ping backend
+# Install Java 8+ and add to PATH
+java -version
+
+# Set JAVA_HOME environment variable
+export JAVA_HOME=/path/to/java
 ```
 
 ### Performance Tuning
 
-1. **Increase Docker Resources**:
-   - Allocate more CPU and memory to Docker
-   - Increase Docker daemon limits
-
-2. **Optimize Test Parameters**:
+1. **Optimize Test Parameters**:
    - Start with low concurrency (1-5 users)
    - Gradually increase load
    - Monitor system resources
 
-3. **Network Optimization**:
-   - Use host networking for better performance
-   - Consider using `--network host` for Taurus tests
+2. **System Resources**:
+   - Ensure sufficient RAM for JMeter
+   - Monitor CPU usage during tests
+   - Check network connectivity
 
 ## 📈 Monitoring & Metrics
 
@@ -418,11 +278,10 @@ docker-compose exec taurus ping backend
 - **Error Rates**: Failed requests percentage
 - **Resource Usage**: CPU, memory, network
 
-### Jenkins Metrics
-- **Build Success Rate**: Job completion statistics
+### Test Metrics
 - **Test Duration**: Time taken for each test run
 - **Artifact Size**: Generated report sizes
-- **Parameter Usage**: Most commonly used test configurations
+- **Success Rate**: Test completion statistics
 
 ## 🤝 Contributing
 
@@ -440,9 +299,16 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 For issues and questions:
 1. Check the troubleshooting section
-2. Review Jenkins console logs
-3. Check Docker container logs
+2. Review test logs and reports
+3. Check application logs
 4. Open an issue in the repository
+
+## 📚 Additional Resources
+
+- **JMeter Documentation**: https://jmeter.apache.org/usermanual/
+- **Taurus Documentation**: https://gettaurus.org/
+- **React Documentation**: https://reactjs.org/docs/
+- **Node.js Documentation**: https://nodejs.org/docs/
 
 ---
 
