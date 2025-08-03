@@ -20,7 +20,7 @@ The Jenkins job failed due to:
 ### 1. Enter Jenkins container
 
 ```bash
-docker exec -it jenkins-taurus-demo /bin/bash
+docker exec -u 0 -it jenkins-taurus-demo bash
 ```
 
 ### 2. Install prerequisites
@@ -222,7 +222,7 @@ fi
 
 ```bash
 # Enter Jenkins container
-docker exec -it jenkins-taurus-demo /bin/bash
+docker exec -u 0 -it jenkins-taurus-demo bash
 
 # Activate virtual environment
 source /var/jenkins_home/taurus-venv/bin/activate
@@ -251,7 +251,7 @@ curl --version
 1. **Permission Denied**
    ```bash
    # Run as root inside container
-   docker exec -it jenkins-taurus-demo /bin/bash
+   docker exec -u 0 -it jenkins-taurus-demo bash
    ```
 
 2. **Virtual Environment Not Found**

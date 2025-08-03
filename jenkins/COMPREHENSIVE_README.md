@@ -93,7 +93,7 @@ If your Jenkins container doesn't have the required dependencies, follow these s
 
 #### 1. Enter Jenkins Container
 ```bash
-docker exec -it jenkins-taurus-demo /bin/bash
+docker exec -u 0 -it jenkins-taurus-demo bash
 ```
 
 #### 2. Install Prerequisites
@@ -628,7 +628,7 @@ docker-compose logs -f
 docker logs jenkins-taurus-demo
 
 # Access Jenkins container
-docker exec -it jenkins-taurus-demo /bin/bash
+docker exec -u 0 -it jenkins-taurus-demo bash
 ```
 
 #### Check Application Status
