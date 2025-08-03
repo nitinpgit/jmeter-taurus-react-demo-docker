@@ -65,11 +65,8 @@ REM Create results directory
 if not exist "taurus-results" mkdir taurus-results
 
 REM Set BlazeMeter credentials (optional - for cloud reporting)
-set BLAZEMETER_TOKEN=1f57f44b33ab29df65126dc1
-set BLAZEMETER_SECRET=c0d07b2ae9f8d63d3806520dd79eeb69c26ea1376775ea743e81bcb091be3ddf5d03e559
-set BLAZEMETER_WORKSPACE_ID=2229371
-
-echo BlazeMeter credentials set for cloud reporting
+REM Note: BlazeMeter credentials are configured in .bzt-rc file
+echo BlazeMeter credentials are configured in .bzt-rc file
 echo.
 
 REM Run Taurus test
@@ -81,10 +78,13 @@ if %errorlevel% equ 0 (
     echo ========================================
     echo Test completed successfully!
     echo ========================================
-    echo Results saved to: taurus-results\
+    echo Results saved to: taurus-result\
+    echo.
+    echo Organizing test results...
+    call move-taurus-results.bat
     echo.
     echo If you have BlazeMeter credentials configured, check your dashboard:
-    echo https://a.blazemeter.com/app/#/projects
+    echo https://a.blazemeter.com/app/#/masters/projects
 ) else (
     echo.
     echo ========================================
