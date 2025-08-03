@@ -1,0 +1,199 @@
+pipeline {
+    agent any
+    
+    parameters {
+        choice(
+            name: 'TAURUS_CONFIG',
+            choices: [
+                'taurus/get-quick-message.yml',
+                'taurus/get-delayed-response.yml', 
+                'taurus/post-create-data.yml',
+                'taurus/test.yml'
+            ],
+            description: 'Select Taurus configuration file to run'
+        )
+        string(
+            name: 'GIT_BRANCH',
+            defaultValue: 'working/jmeter-taurus-blazemeter-local',
+            description: 'Git branch to clone'
+        )
+        string(
+            name: 'GIT_REPO',
+            defaultValue: 'https://github.com/nitinpgit/jmeter-taurus-react-demo-docker.git',
+            description: 'Git repository URL'
+        )
+    }
+    
+    environment {
+        WORKSPACE_DIR = "${WORKSPACE}"
+        BACKEND_PORT = "5000"
+        FRONTEND_PORT = "3000"
+    }
+    
+    stages {
+        stage('Checkout') {
+            steps {
+                echo "Cloning repository from branch: ${params.GIT_BRANCH}"
+                checkout([
+                    $class: 'GitSCM',
+                    branches: [[name: "*/${params.GIT_BRANCH}"]],
+                    userRemoteConfigs: [[
+                        url: "${params.GIT_REPO}",
+                        credentialsId: 'git-credentials'
+                    ]]
+                ])
+            }
+        }
+        
+        stage('Setup Environment') {
+            steps {
+                script {
+                    // Create .bzt-rc file for BlazeMeter configuration
+                    sh '''
+                        cat > ~/.bzt-rc << EOF
+                        modules:
+                          blazemeter:
+                            token: "1f57f44b33ab29df65126dc1:c0d07b2ae9f8d63d3806520dd79eeb69c26ea1376775ea743e81bcb091be3ddf5d03e559"
+                        EOF
+                        echo "BlazeMeter configuration created"
+                    '''
+                    
+                    // Install dependencies
+                    sh '''
+                        echo "Installing backend dependencies..."
+                        cd backend && npm install
+                        
+                        echo "Installing frontend dependencies..."
+                        cd ../frontend && npm install
+                    '''
+                }
+            }
+        }
+        
+        stage('Start Backend') {
+            steps {
+                script {
+                    sh '''
+                        echo "Starting backend application..."
+                        cd backend
+                        nohup npm start > ../backend.log 2>&1 &
+                        echo $! > backend.pid
+                        
+                        # Wait for backend to start
+                        sleep 10
+                        
+                        # Check if backend is running
+                        if curl -f http://localhost:5000/api/health; then
+                            echo "Backend started successfully"
+                        else
+                            echo "Backend failed to start"
+                            exit 1
+                        fi
+                    '''
+                }
+            }
+        }
+        
+        stage('Start Frontend') {
+            steps {
+                script {
+                    sh '''
+                        echo "Starting frontend application..."
+                        cd frontend
+                        nohup npm start > ../frontend.log 2>&1 &
+                        echo $! > frontend.pid
+                        
+                        # Wait for frontend to start
+                        sleep 15
+                        
+                        # Check if frontend is running
+                        if curl -f http://localhost:3000; then
+                            echo "Frontend started successfully"
+                        else
+                            echo "Frontend failed to start"
+                            exit 1
+                        fi
+                    '''
+                }
+            }
+        }
+        
+        stage('Run Taurus Tests') {
+            steps {
+                script {
+                    sh '''
+                        echo "Running Taurus test: ${params.TAURUS_CONFIG}"
+                        
+                        # Create results directory
+                        mkdir -p taurus-test-results
+                        
+                        # Run Taurus test
+                        bzt ${params.TAURUS_CONFIG}
+                        
+                        # Move timestamped results to organized directory
+                        if [ -f move-taurus-results.sh ]; then
+                            chmod +x move-taurus-results.sh
+                            ./move-taurus-results.sh
+                        fi
+                        
+                        echo "Taurus test completed"
+                    '''
+                }
+            }
+        }
+        
+        stage('Stop Applications') {
+            steps {
+                script {
+                    sh '''
+                        echo "Stopping applications..."
+                        
+                        # Stop backend
+                        if [ -f backend/backend.pid ]; then
+                            kill $(cat backend/backend.pid) 2>/dev/null || true
+                            rm -f backend/backend.pid
+                        fi
+                        
+                        # Stop frontend
+                        if [ -f frontend/frontend.pid ]; then
+                            kill $(cat frontend/frontend.pid) 2>/dev/null || true
+                            rm -f frontend/frontend.pid
+                        fi
+                        
+                        echo "Applications stopped"
+                    '''
+                }
+            }
+        }
+    }
+    
+    post {
+        always {
+            // Archive test results
+            archiveArtifacts(
+                artifacts: 'taurus-test-results/**/*, *.log, taurus-result/**/*',
+                allowEmptyArchive: true
+            )
+            
+            // Cleanup
+            script {
+                sh '''
+                    # Stop any remaining processes
+                    pkill -f "npm start" || true
+                    pkill -f "node server.js" || true
+                    
+                    # Clean up temporary files
+                    rm -f backend/backend.pid frontend/frontend.pid
+                '''
+            }
+        }
+        
+        success {
+            echo "Pipeline completed successfully!"
+        }
+        
+        failure {
+            echo "Pipeline failed!"
+        }
+    }
+} 
