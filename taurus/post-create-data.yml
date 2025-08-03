@@ -9,7 +9,7 @@ execution:
 scenarios:
   post-create-data:
     requests:
-      - url: http://localhost:3000/api/data
+      - url: http://localhost:5000/api/data
         method: POST
         headers:
           Content-Type: application/json
@@ -20,4 +20,10 @@ scenarios:
 
 reporting:
   - module: console
-  - module: final-stats 
+  - module: final-stats
+  - module: junit-xml
+    filename: ./taurus-result/taurus-report.xml
+  - module: blazemeter
+    project: "jmeter-taurus-blazemeter-react-demo-project"
+    report-name: "Post Create Data API Test"
+    test: "post-create-data-test" 

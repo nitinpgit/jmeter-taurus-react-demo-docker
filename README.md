@@ -24,6 +24,7 @@ jmeter-taurus-react-demo/
 │   └── test.yml
 ├── run-jmeter-tests.bat/.sh  # JMeter test runners
 ├── run-taurus-tests.bat/.sh  # Taurus test runners
+├── move-taurus-results.bat/.sh  # Taurus results organizer
 ├── setup-local-environment.md # Setup guide
 ├── quick-start-commands.md   # Quick reference
 └── README.md
@@ -145,6 +146,25 @@ jmeter -t jmeter/localhost3000/get-quick-message.jmx
 - **Python 3.7+** installed
 - **Taurus** installed: `pip install bzt`
 
+#### BlazeMeter Configuration
+To enable cloud reporting and avoid the "No BlazeMeter API key provided" warning, create a `.bzt-rc` file in your home directory with your BlazeMeter credentials:
+
+**Windows**: `C:\Users\<username>\.bzt-rc`
+**Linux/Mac**: `~/.bzt-rc`
+
+```yaml
+modules:
+  blazemeter:
+    token: "your_blazemeter_token:your_blazemeter_secret"
+```
+
+**Example configuration:**
+```yaml
+modules:
+  blazemeter:
+    token: "1ff44b3357ab29df65126dc1:c0d0769c26ea13767b2ae9f8d63d3806520dd79eeb75ea743e81bcb091be3ddf5d03e559"
+```
+
 #### Running Taurus Tests
 
 **Option 1: Using the provided script**
@@ -156,6 +176,8 @@ run-taurus-tests.bat
 chmod +x run-taurus-tests.sh
 ./run-taurus-tests.sh
 ```
+
+**Note**: The scripts automatically organize test results using `move-taurus-results.bat/.sh`
 
 **Option 2: Manual execution**
 ```bash
@@ -214,9 +236,24 @@ nodemon server.js
 - **Files**: `results_YYYYMMDD_HHMMSS.jtl`, `html-report_YYYYMMDD_HHMMSS/`
 
 ### Taurus Results
-- **Location**: `taurus-results/` directory
+- **Location**: `taurus-result/` directory (JUnit XML reports)
+- **Timestamped Folders**: Created at root level (e.g., `2025-08-03_18-23-43.550097/`)
 - **Format**: JUnit XML, console output, BlazeMeter reports
-- **Files**: `taurus-report.xml`, console logs, performance metrics
+- **Files**: `taurus-report.xml`, console logs, performance metrics, KPI data
+
+#### Organizing Taurus Results
+Taurus creates timestamped folders at the root level. Use the provided scripts to organize them:
+
+```bash
+# Windows
+move-taurus-results.bat
+
+# Linux/Mac
+chmod +x move-taurus-results.sh
+./move-taurus-results.sh
+```
+
+This moves all timestamped Taurus result folders into the `taurus-test-results/` directory for better organization.
 
 ## 🔍 Troubleshooting
 
@@ -249,7 +286,18 @@ pip install bzt
 bzt --version
 ```
 
-4. **Java not found**:
+4. **BlazeMeter API key warning**:
+```bash
+# Create .bzt-rc file in your home directory
+# Windows: C:\Users\<username>\.bzt-rc
+# Linux/Mac: ~/.bzt-rc
+
+modules:
+  blazemeter:
+    token: "your_token:your_secret"
+```
+
+5. **Java not found**:
 ```bash
 # Install Java 8+ and add to PATH
 java -version
